@@ -1,5 +1,7 @@
 # bevy_deepzoom
 
+![Crates.io Version](https://img.shields.io/crates/v/bevy_deepzoom)
+
 Render [Deep Zoom](https://en.wikipedia.org/wiki/Deep_Zoom) image pyramids in Bevy.
 
 ![bevy_deepzoom demo](readme-demo.gif)
