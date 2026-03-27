@@ -1,0 +1,66 @@
+[package]
+name = "bevy_deepzoom"
+version = "0.0.2"
+edition = "2021"
+description = "Deep Zoom Image (DZI) tile streaming Bevy"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+documentation = "https://docs.rs/bevy_deepzoom"
+repository = "https://github.com/liamaharon/bevy_deepzoom"
+homepage = "https://github.com/liamaharon/bevy_deepzoom"
+keywords = ["bevy", "deepzoom", "dzi", "tiles", "image"]
+categories = ["rendering"]
+
+[dependencies]
+quick-xml = { version = "0.38.0", features = ["serialize"] }
+serde = { version = "1.0.226", default-features = false, features = [
+  "alloc",
+  "derive",
+] }
+bevy = { version = "0.18", default-features = false, features = [
+  "std",
+  "async_executor",
+  "bevy_asset",
+  "bevy_camera",
+  "bevy_color",
+  "bevy_core_pipeline",
+  "bevy_gizmos",
+  "bevy_gizmos_render",
+  "bevy_image",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_state",
+  "bevy_window",
+  "reflect_auto_register",
+] }
+
+[dev-dependencies]
+iyes_perf_ui = { git = "https://github.com/blip-radar/iyes_perf_ui.git", rev = "1861c5c5b2ed5ed3c668095b1a0c4b0d14216fd6" }
+
+bevy = { version = "0.18.1", default-features = false, features = [
+  "std",
+  "async_executor",
+  "bevy_asset",
+  "bevy_camera",
+  "bevy_color",
+  "bevy_core_pipeline",
+  "bevy_image",
+  "bevy_input_focus",
+  "bevy_log",
+  "bevy_picking",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_state",
+  "bevy_text",
+  "bevy_ui",
+  "ui_picking",
+  "bevy_ui_render",
+  "bevy_window",
+  "bevy_winit",
+  "default_font",
+  "https",
+  "jpeg",
+  "reflect_auto_register",
+  "web",
+  "webgpu",
+] }
