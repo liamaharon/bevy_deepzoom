@@ -21,7 +21,6 @@ use bevy_deepzoom::{DeepZoom, DeepZoomConfig, DeepZoomPlugin};
 
 fn spawn_camera(mut commands: Commands) {
     let config = DeepZoomConfig::new("assets/map/tiles.dzi", "assets/map/tiles_files");
-
     commands.spawn((Camera2d, DeepZoom::from_config(config)));
 }
 
