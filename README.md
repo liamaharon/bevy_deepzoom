@@ -4,7 +4,7 @@
 
 Render [Deep Zoom](https://en.wikipedia.org/wiki/Deep_Zoom) image pyramids in Bevy.
 
-![bevy_deepzoom demo](readme-demo.gif)
+![bevy_deepzoom demo](readme-screencap.gif)
 
 ## Compatibility
 
