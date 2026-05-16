@@ -233,6 +233,20 @@ impl DeepZoom {
     pub fn zoom_level(&self) -> u32 {
         self.state.zoom_level
     }
+
+    /// Returns the additional zoom levels loaded above the base camera-derived level.
+    pub fn zoom_level_bias(&self) -> u32 {
+        self.config.zoom_level_bias
+    }
+
+    /// Sets how aggressively the viewer prefers sharper tiles.
+    ///
+    /// Lower values reduce tile resolution and memory pressure. Existing tiles
+    /// above the new level are removed by the normal cleanup systems on the
+    /// next update.
+    pub fn set_zoom_level_bias(&mut self, zoom_level_bias: u32) {
+        self.config.zoom_level_bias = zoom_level_bias;
+    }
 }
 
 impl DeepZoomConfig {
