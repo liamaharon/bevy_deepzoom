@@ -10,6 +10,7 @@ repository = "https://github.com/liamaharon/bevy_deepzoom"
 homepage = "https://github.com/liamaharon/bevy_deepzoom"
 keywords = ["bevy", "deepzoom", "dzi", "tiles", "image"]
 categories = ["rendering"]
+exclude = ["readme-screencap.gif"]
 
 [dependencies]
 quick-xml = { version = "0.38.0", features = ["serialize"] }
