@@ -117,6 +117,7 @@ mod ortho_ext;
 mod systems;
 
 use bevy::asset::AssetLoadError;
+use bevy::camera::visibility::VisibilitySystems;
 use bevy::platform::collections::HashSet;
 use bevy::prelude::*;
 use dzi_asset_loader::DziContents;
@@ -209,6 +210,16 @@ pub(crate) struct DeepZoomState {
     tiles_loading: HashSet<TileId>,
     /// Tiles that are currently loaded and rendered.
     tiles_loaded: HashSet<TileId>,
+    /// `true` when every in-view tile across all levels `0..=zoom_level` is
+    /// already spawned (nothing left to stream in for the current view, and the
+    /// concurrent-load throttle is not blocking). Recomputed each frame by
+    /// `spawn_in_view_tiles`. `cull_occluded_tiles` only hides occluded coarse
+    /// levels while this holds: tiles spawn incrementally (one per frame), so a
+    /// finer level can be partially spawned yet have all of its *spawned* tiles
+    /// loaded — hiding the coarse fallback then would expose black where the
+    /// finer level has not been spawned yet. This flag gates on real coverage
+    /// instead.
+    view_fully_streamed: bool,
 }
 
 impl DeepZoom {
@@ -351,6 +362,19 @@ impl Plugin for DeepZoomPlugin {
                 )
                     .chain(),
             ),
+        );
+
+        // Cull runs in `PostUpdate` (not the `Update` spawn/despawn chain) so it
+        // observes the *final* post-motion state each frame: any host camera
+        // controller that pans/zooms in `Update` (e.g. `bevy_pancam`) has already
+        // applied this frame's change, and this-frame tile spawn/despawn commands
+        // have flushed at the `Update`->`PostUpdate` sync point, so the cull sees
+        // every tile entity (and the `view_fully_streamed` coverage flag) as of
+        // this frame. Ordered before visibility propagation so the hidden/shown
+        // state takes effect the same frame it is computed.
+        app.add_systems(
+            PostUpdate,
+            systems::cull_occluded_tiles.before(VisibilitySystems::VisibilityPropagate),
         );
     }
 }

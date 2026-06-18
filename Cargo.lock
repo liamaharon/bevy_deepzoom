@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_deepzoom"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bevy",
  "iyes_perf_ui",

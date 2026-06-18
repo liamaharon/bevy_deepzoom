@@ -179,6 +179,87 @@ pub(crate) fn despawn_out_of_view_tiles(
     }
 }
 
+fn show_all_tiles_for(tiles: &mut Query<(&DziTile, &mut Visibility)>, viewer: Entity) {
+    for (tile, mut visibility) in tiles.iter_mut() {
+        if tile.owner_entity == viewer && *visibility != Visibility::Inherited {
+            *visibility = Visibility::Inherited;
+        }
+    }
+}
+
+/// Hide coarse LOD tiles fully occluded by loaded finer tiles, to cut basemap
+/// overdraw. Every level `0..=zoom_level` stays spawned (each covers the whole
+/// view), so without this they all rasterize every frame even though only the
+/// finest loaded level is ever seen. A tile at level `L` is hidden when level
+/// `L+1` is loaded across the whole view (its pixels are then all covered by a
+/// finer, higher-z tile); coarser fallbacks stay visible wherever the finer
+/// level still has gaps, so there is never a blank/visible difference.
+///
+/// Hiding is only attempted once the view is fully streamed
+/// (`DeepZoomState::view_fully_streamed`). Tiles spawn incrementally — one per
+/// frame, and cached/already-loaded tiles bypass `tiles_loading` entirely — so
+/// a finer level can be only partially spawned while every tile it *has* spawned
+/// is loaded. Without the coverage gate, the per-level "all spawned loaded"
+/// check would read as complete and hide the coarse fallback over the regions
+/// the finer level has not spawned yet, flashing black tile-by-tile as the
+/// finer level fills in. `view_fully_streamed` guarantees the finer level is
+/// fully spawned across the view, so per-level completeness reflects true
+/// coverage.
+pub(crate) fn cull_occluded_tiles(
+    mut tiles: Query<(&DziTile, &mut Visibility)>,
+    viewers: Query<(Entity, &DeepZoom)>,
+) {
+    for (viewer_entity, deep_zoom) in viewers.iter() {
+        if deep_zoom.state.load_state != DeepZoomLoadState::Loaded {
+            continue;
+        }
+
+        if !deep_zoom.state.view_fully_streamed {
+            // Still streaming in tiles for the current view: a finer level may not
+            // cover the whole view yet, so keep every coarse fallback visible
+            // (this also instantly undoes any prior cull when motion resumes).
+            show_all_tiles_for(&mut tiles, viewer_entity);
+            continue;
+        }
+
+        // Fully streamed: every in-view tile is spawned, so per-level
+        // completeness reflects true coverage — hiding occluded levels is safe.
+        let levels = deep_zoom.state.zoom_level as usize + 2;
+        // `complete[L]` = there is ≥1 spawned level-`L` tile for this viewer and
+        // every spawned level-`L` tile is loaded.
+        let mut any = vec![false; levels];
+        let mut all_loaded = vec![true; levels];
+        for (tile, _) in tiles.iter() {
+            if tile.owner_entity != viewer_entity {
+                continue;
+            }
+            let level = tile.zoom_level as usize;
+            if level >= levels {
+                continue;
+            }
+            any[level] = true;
+            if !deep_zoom.state.tiles_loaded.contains(&tile.id) {
+                all_loaded[level] = false;
+            }
+        }
+        let complete = |level: usize| level < levels && any[level] && all_loaded[level];
+
+        for (tile, mut visibility) in tiles.iter_mut() {
+            if tile.owner_entity != viewer_entity {
+                continue;
+            }
+            let target = if complete(tile.zoom_level as usize + 1) {
+                Visibility::Hidden
+            } else {
+                Visibility::Inherited
+            };
+            if *visibility != target {
+                *visibility = target;
+            }
+        }
+    }
+}
+
 pub(crate) fn check_tile_loading_status(
     mut messages: MessageReader<AssetEvent<Image>>,
     tiles: Query<(&DziTile, &Sprite)>,
@@ -206,6 +287,11 @@ pub(crate) fn spawn_in_view_tiles(
     mut viewers: Query<(Entity, &Projection, &Transform, &mut DeepZoom), With<Camera2d>>,
 ) {
     'viewers: for (viewer_entity, proj, transform, mut deep_zoom) in viewers.iter_mut() {
+        // Assume not fully streamed; only completing the spawn walk below without
+        // spawning anything or hitting the load throttle proves the view is fully
+        // covered. `cull_occluded_tiles` reads this to know hiding is safe.
+        deep_zoom.state.view_fully_streamed = false;
+
         if deep_zoom.state.load_state != DeepZoomLoadState::Loaded {
             continue;
         }
@@ -246,9 +332,10 @@ pub(crate) fn spawn_in_view_tiles(
                         continue;
                     }
 
-                    let tiles_base_path = &deep_zoom.config.tiles_base_path;
-                    let tile_format = &dzi.format;
-                    let path = format!("{tiles_base_path}/{level}/{i}_{j}.{tile_format}");
+                    let path = format!(
+                        "{}/{level}/{i}_{j}.{}",
+                        deep_zoom.config.tiles_base_path, dzi.format
+                    );
                     let handle = asset_server.load_with_settings(
                         path,
                         |settings: &mut ImageLoaderSettings| {
@@ -282,6 +369,11 @@ pub(crate) fn spawn_in_view_tiles(
                 }
             }
         }
+
+        // Reached the end of the spawn walk without spawning or being throttled:
+        // every in-view tile at every level is already spawned, so the view is
+        // fully covered and the cull may safely hide occluded coarse levels.
+        deep_zoom.state.view_fully_streamed = true;
     }
 }
 
