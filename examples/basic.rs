@@ -1,12 +1,7 @@
 use bevy::{
-    camera::CameraProjection,
-    ecs::system::{lifetimeless::SQuery, SystemParam},
-    input::mouse::MouseWheel,
-    prelude::*,
-    window::PrimaryWindow,
+    camera::CameraProjection, input::mouse::MouseWheel, prelude::*, window::PrimaryWindow,
 };
 use bevy_deepzoom::{DeepZoom, DeepZoomConfig, DeepZoomPlugin};
-use iyes_perf_ui::{prelude::*, PerfUiPlugin};
 
 const DZI_PATH: &str = "https://openseadragon.github.io/example-images/highsmith/highsmith.dzi";
 const TILES_BASE_PATH: &str =
@@ -18,10 +13,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(bevy::diagnostic::FrameTimeDiagnosticsPlugin::default())
         .add_plugins(bevy::diagnostic::EntityCountDiagnosticsPlugin::default())
-        .add_plugins(PerfUiPlugin)
         .add_plugins(DeepZoomPlugin)
-        .add_perf_ui_simple_entry::<PerfUiRequiredZoomLevel>()
-        .add_systems(Startup, (spawn_camera, spawn_perf_ui))
+        .add_systems(Startup, spawn_camera)
         .add_systems(Update, (drag_pan_camera, zoom_camera))
         .run();
 }
@@ -33,18 +26,6 @@ fn spawn_camera(mut commands: Commands) {
         .with_draw_debug_ui(true);
 
     commands.spawn((Camera2d, DeepZoom::from_config(config)));
-}
-
-fn spawn_perf_ui(mut commands: Commands) {
-    commands.spawn((
-        PerfUiRoot {
-            values_col_width: 56.0,
-            ..default()
-        },
-        PerfUiEntryFPS::default(),
-        PerfUiEntryEntityCount::default(),
-        PerfUiRequiredZoomLevel,
-    ));
 }
 
 #[derive(Resource, Default)]
@@ -111,27 +92,4 @@ fn zoom_camera(
 
     projection.scale *= (1.0 - scroll_delta * 0.12).clamp(0.5, 2.0);
     projection.update(window.width(), window.height());
-}
-
-#[derive(Component, Default)]
-struct PerfUiRequiredZoomLevel;
-
-impl iyes_perf_ui::entry::PerfUiEntry for PerfUiRequiredZoomLevel {
-    type Value = u32;
-    type SystemParam = SQuery<&'static DeepZoom, With<Camera2d>>;
-
-    fn label(&self) -> &str {
-        "Zoom Level"
-    }
-
-    fn sort_key(&self) -> i32 {
-        10000
-    }
-
-    fn update_value(
-        &self,
-        deep_zoom_query: &mut <Self::SystemParam as SystemParam>::Item<'_, '_>,
-    ) -> Option<Self::Value> {
-        deep_zoom_query.iter().next().map(DeepZoom::zoom_level)
-    }
 }

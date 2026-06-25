@@ -336,12 +336,12 @@ pub(crate) fn spawn_in_view_tiles(
                         "{}/{level}/{i}_{j}.{}",
                         deep_zoom.config.tiles_base_path, dzi.format
                     );
-                    let handle = asset_server.load_with_settings(
-                        path,
-                        |settings: &mut ImageLoaderSettings| {
+                    let handle = asset_server
+                        .load_builder()
+                        .with_settings(|settings: &mut ImageLoaderSettings| {
                             settings.asset_usage = RenderAssetUsages::RENDER_WORLD;
-                        },
-                    );
+                        })
+                        .load(path);
                     deep_zoom.state.tiles_loading.insert(id);
                     commands.spawn((
                         Name::from(format!("DZI Tile {level}/{i}_{j}")),

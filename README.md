@@ -10,7 +10,8 @@ Render [Deep Zoom](https://en.wikipedia.org/wiki/Deep_Zoom) image pyramids in Be
 
 | `bevy_deepzoom` | `bevy` |
 | --------------- | ------ |
-| `0.0.2`         | `0.18` |
+| `0.0.5`         | `0.19` |
+| `0.0.4`         | `0.18` |
 | `0.0.1`         | `0.17` |
 
 ## Usage

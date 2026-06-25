@@ -1,6 +1,6 @@
 [package]
 name = "bevy_deepzoom"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 description = "Deep Zoom Image (DZI) tile streaming Bevy"
 license = "MIT OR Apache-2.0"
@@ -18,7 +18,7 @@ serde = { version = "1.0.226", default-features = false, features = [
   "alloc",
   "derive",
 ] }
-bevy = { version = "0.18", default-features = false, features = [
+bevy = { version = "0.19", default-features = false, features = [
   "std",
   "async_executor",
   "bevy_asset",
@@ -36,9 +36,7 @@ bevy = { version = "0.18", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-iyes_perf_ui = { git = "https://github.com/blip-radar/iyes_perf_ui.git", rev = "1861c5c5b2ed5ed3c668095b1a0c4b0d14216fd6" }
-
-bevy = { version = "0.18.1", default-features = false, features = [
+bevy = { version = "0.19", default-features = false, features = [
   "std",
   "async_executor",
   "bevy_asset",
