@@ -75,9 +75,9 @@ pub(crate) fn finish_loading_dzi(
 
 pub(crate) fn update_zoom_level(
     dzi_assets: Res<Assets<DziContents>>,
-    mut viewers: Query<(&mut Projection, &mut DeepZoom), With<Camera2d>>,
+    mut viewers: Query<(&Projection, &mut DeepZoom), With<Camera2d>>,
 ) {
-    for (mut proj, mut deep_zoom) in viewers.iter_mut() {
+    for (proj, mut deep_zoom) in viewers.iter_mut() {
         if deep_zoom.state.load_state != DeepZoomLoadState::Loaded {
             continue;
         }
@@ -85,7 +85,7 @@ pub(crate) fn update_zoom_level(
         let dzi = crate::loaded_dzi(&deep_zoom, &dzi_assets)
             .expect("loaded DeepZoom viewer must have a loaded DZI asset");
 
-        let proj = proj.ortho_mut().expect("2d cam is ortho");
+        let proj = proj.ortho().expect("2d cam is ortho");
         let full_resolution_level = get_zoom_levels(dzi, deep_zoom.config.pyramid_depth);
         let required_zoom_level = get_required_zoom_level(
             full_resolution_level,
@@ -475,4 +475,61 @@ fn tile_axis_bounds(
 fn get_rect_in_view(proj: &OrthographicProjection, transform: &Transform) -> Rect {
     let position = transform.translation.truncate();
     Rect::from_corners(proj.area.min + position, proj.area.max + position)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dzi_asset_loader::Size;
+    use bevy::camera::OrthographicProjection;
+
+    #[derive(Resource, Default)]
+    struct ProjectionChangeObserved(bool);
+
+    fn record_projection_change(
+        projection: Single<Ref<Projection>>,
+        mut observed: ResMut<ProjectionChangeObserved>,
+    ) {
+        observed.0 = projection.is_changed();
+    }
+
+    #[test]
+    fn update_zoom_level_does_not_mark_an_unchanged_projection_changed() {
+        let mut app = App::new();
+        app.init_resource::<Assets<DziContents>>();
+        app.init_resource::<ProjectionChangeObserved>();
+        let dzi = app
+            .world_mut()
+            .resource_mut::<Assets<DziContents>>()
+            .add(DziContents {
+                format: "jpeg".to_string(),
+                overlap: 0,
+                tile_size: 256,
+                size: Size {
+                    width: 2048,
+                    height: 1024,
+                },
+            });
+        let mut deep_zoom = DeepZoom::from_config(DeepZoomConfig::new("map.dzi", "map_files"));
+        deep_zoom.state.dzi = Some(dzi);
+        deep_zoom.state.load_state = DeepZoomLoadState::Loaded;
+        app.world_mut().spawn((
+            Camera2d,
+            Projection::Orthographic(OrthographicProjection::default_2d()),
+            deep_zoom,
+        ));
+        app.add_systems(
+            Update,
+            (update_zoom_level, record_projection_change).chain(),
+        );
+
+        app.update();
+        app.world_mut().clear_trackers();
+        app.update();
+
+        assert!(
+            !app.world().resource::<ProjectionChangeObserved>().0,
+            "reading the camera scale must not dirty its projection"
+        );
+    }
 }
