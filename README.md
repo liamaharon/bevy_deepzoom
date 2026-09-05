@@ -38,3 +38,16 @@ fn main() {
 ## Docs
 
 See [`https://docs.rs/bevy_deepzoom`](https://docs.rs/bevy_deepzoom).
+
+## Features
+
+The default `reflect_auto_register` feature enables Bevy's automatic type
+registration, preserving the existing behavior. Applications that manage their
+App type registries explicitly can disable it:
+
+```toml
+bevy_deepzoom = { version = "0.0.6", default-features = false }
+```
+
+To opt back in, add `features = ["reflect_auto_register"]`. Other dependencies
+can still enable Bevy's feature through Cargo feature unification.

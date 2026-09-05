@@ -12,6 +12,10 @@ keywords = ["bevy", "deepzoom", "dzi", "tiles", "image"]
 categories = ["rendering"]
 exclude = ["readme-screencap.gif"]
 
+[features]
+default = ["reflect_auto_register"]
+reflect_auto_register = ["bevy/reflect_auto_register"]
+
 [dependencies]
 quick-xml = { version = "0.38.0", features = ["serialize"] }
 serde = { version = "1.0.226", default-features = false, features = [
@@ -32,7 +36,6 @@ bevy = { version = "0.19", default-features = false, features = [
   "bevy_sprite",
   "bevy_state",
   "bevy_window",
-  "reflect_auto_register",
 ] }
 
 [dev-dependencies]
@@ -59,7 +62,6 @@ bevy = { version = "0.19", default-features = false, features = [
   "default_font",
   "https",
   "jpeg",
-  "reflect_auto_register",
   "web",
   "webgpu",
 ] }
