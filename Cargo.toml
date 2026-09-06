@@ -1,6 +1,6 @@
 [package]
 name = "bevy_deepzoom"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2021"
 description = "Deep Zoom Image (DZI) tile streaming Bevy"
 license = "MIT OR Apache-2.0"
@@ -11,6 +11,10 @@ homepage = "https://github.com/liamaharon/bevy_deepzoom"
 keywords = ["bevy", "deepzoom", "dzi", "tiles", "image"]
 categories = ["rendering"]
 exclude = ["readme-screencap.gif"]
+
+[features]
+default = ["reflect_auto_register"]
+reflect_auto_register = ["bevy/reflect_auto_register"]
 
 [dependencies]
 quick-xml = { version = "0.38.0", features = ["serialize"] }
@@ -32,7 +36,6 @@ bevy = { version = "0.19", default-features = false, features = [
   "bevy_sprite",
   "bevy_state",
   "bevy_window",
-  "reflect_auto_register",
 ] }
 
 [dev-dependencies]
@@ -59,7 +62,6 @@ bevy = { version = "0.19", default-features = false, features = [
   "default_font",
   "https",
   "jpeg",
-  "reflect_auto_register",
   "web",
   "webgpu",
 ] }
