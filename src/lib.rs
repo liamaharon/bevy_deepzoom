@@ -193,6 +193,22 @@ pub struct DeepZoomConfig {
     /// Increase this to load more tiles in parallel.
     /// Decrease this to reduce system and network load.
     max_concurrent_tile_loads: usize,
+    /// How spawned tiles are drawn.
+    tile_visual: DeepZoomTileVisual,
+}
+
+/// How spawned tiles are drawn.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DeepZoomTileVisual {
+    /// Each tile is a [`Sprite`] anchored at its top-left corner.
+    #[default]
+    Sprite,
+    /// Tiles spawn with only [`DziTile`], [`Transform`] and [`Visibility`], so
+    /// the app can draw them itself, for example as a `Mesh2d` with its own
+    /// material, by observing `On<Add, DziTile>`. The tile's [`Transform`] is
+    /// its top-left corner and [`DziTile::size`] its extent, growing right and
+    /// down; [`DziTile::image`] is its texture.
+    Custom,
 }
 
 /// Runtime state managed internally for each viewer.
@@ -271,6 +287,7 @@ impl DeepZoomConfig {
             tile_layer: 0.0,
             draw_debug_ui: false,
             max_concurrent_tile_loads: DEFAULT_MAX_CONCURRENT_TILE_LOADS,
+            tile_visual: DeepZoomTileVisual::default(),
         }
     }
 
@@ -308,6 +325,13 @@ impl DeepZoomConfig {
         self.draw_debug_ui = draw_debug_ui;
         self
     }
+
+    /// Sets [`DeepZoomTileVisual`]: [`DeepZoomTileVisual::Custom`] leaves
+    /// drawing the tiles to the app.
+    pub fn with_tile_visual(mut self, tile_visual: DeepZoomTileVisual) -> Self {
+        self.tile_visual = tile_visual;
+        self
+    }
 }
 
 /// Returns the loaded .dzi.
@@ -333,12 +357,23 @@ pub struct DeepZoomLoaded(pub Entity);
 #[derive(Event, Debug, Clone)]
 pub struct DeepZoomLoadFailed(pub Entity, pub Arc<AssetLoadError>);
 
+/// One spawned tile of a [`DeepZoom`] viewer. Spawned and despawned by the
+/// crate; apps may read it, for example to find tiles or, with
+/// [`DeepZoomTileVisual::Custom`], to draw them.
 #[derive(Component, Debug)]
-pub(crate) struct DziTile {
+#[non_exhaustive]
+pub struct DziTile {
+    /// The [`DeepZoom`] viewer this tile belongs to.
     pub owner_entity: Entity,
+    /// The tile's pyramid level and column/row.
     pub id: TileId,
     pub zoom_level: u32,
+    /// The world rectangle the tile covers.
     pub rect: Rect,
+    /// The tile's texture.
+    pub image: Handle<Image>,
+    /// The tile's world size, growing right and down from its [`Transform`].
+    pub size: Vec2,
 }
 
 #[derive(Default)]

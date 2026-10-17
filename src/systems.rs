@@ -262,13 +262,13 @@ pub(crate) fn cull_occluded_tiles(
 
 pub(crate) fn check_tile_loading_status(
     mut messages: MessageReader<AssetEvent<Image>>,
-    tiles: Query<(&DziTile, &Sprite)>,
+    tiles: Query<&DziTile>,
     mut viewers: Query<&mut DeepZoom, With<Camera2d>>,
 ) {
     for message in messages.read() {
         if let AssetEvent::LoadedWithDependencies { id } = message {
-            for (tile, sprite) in tiles.iter() {
-                if sprite.image.id() == *id {
+            for tile in tiles.iter() {
+                if tile.image.id() == *id {
                     let Ok(mut deep_zoom) = viewers.get_mut(tile.owner_entity) else {
                         continue;
                     };
@@ -343,27 +343,41 @@ pub(crate) fn spawn_in_view_tiles(
                         })
                         .load(path);
                     deep_zoom.state.tiles_loading.insert(id);
-                    commands.spawn((
+                    let base = (
                         Name::from(format!("DZI Tile {level}/{i}_{j}")),
                         DziTile {
                             owner_entity: viewer_entity,
                             id,
                             zoom_level: level,
                             rect: tile.rect,
+                            image: handle.clone(),
+                            size: tile.size,
                         },
-                        Sprite {
-                            image: handle,
-                            custom_size: Some(tile.size),
-                            color: Color::WHITE,
-                            ..Default::default()
-                        },
-                        Anchor::TOP_LEFT,
                         Transform::from_translation(Vec3::new(
                             tile.top_left.x,
                             tile.top_left.y,
                             level as f32 * 0.001 + deep_zoom.config.tile_layer,
                         )),
-                    ));
+                    );
+                    match deep_zoom.config.tile_visual {
+                        DeepZoomTileVisual::Sprite => {
+                            commands.spawn((
+                                base,
+                                Sprite {
+                                    image: handle,
+                                    custom_size: Some(tile.size),
+                                    color: Color::WHITE,
+                                    ..Default::default()
+                                },
+                                Anchor::TOP_LEFT,
+                            ));
+                        }
+                        // The occlusion cull needs a `Visibility`, which a
+                        // `Sprite` would otherwise require.
+                        DeepZoomTileVisual::Custom => {
+                            commands.spawn((base, Visibility::default()));
+                        }
+                    }
 
                     continue 'viewers;
                 }
@@ -531,5 +545,94 @@ mod tests {
             !app.world().resource::<ProjectionChangeObserved>().0,
             "reading the camera scale must not dirty its projection"
         );
+    }
+
+    fn viewer_app(tile_visual: DeepZoomTileVisual) -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Image>();
+        app.init_asset::<DziContents>();
+        let dzi = app
+            .world_mut()
+            .resource_mut::<Assets<DziContents>>()
+            .add(DziContents {
+                format: "jpeg".to_string(),
+                overlap: 0,
+                tile_size: 256,
+                size: Size {
+                    width: 2048,
+                    height: 1024,
+                },
+            });
+        let config = DeepZoomConfig::new("map.dzi", "map_files").with_tile_visual(tile_visual);
+        let mut deep_zoom = DeepZoom::from_config(config);
+        deep_zoom.state.dzi = Some(dzi);
+        deep_zoom.state.load_state = DeepZoomLoadState::Loaded;
+        app.world_mut().spawn((
+            Camera2d,
+            Projection::Orthographic(OrthographicProjection {
+                area: Rect::new(-100_000.0, -100_000.0, 100_000.0, 100_000.0),
+                ..OrthographicProjection::default_2d()
+            }),
+            deep_zoom,
+        ));
+        app.add_systems(Update, spawn_in_view_tiles);
+        app
+    }
+
+    #[test]
+    fn tiles_are_sprites_by_default() {
+        let mut app = viewer_app(DeepZoomTileVisual::default());
+        app.update();
+        let mut tiles = app.world_mut().query::<(&DziTile, Has<Sprite>)>();
+        let (tile, has_sprite) = tiles.single(app.world()).unwrap();
+        assert!(has_sprite);
+        assert!(tile.size.x > 0.0 && tile.size.y > 0.0);
+    }
+
+    #[test]
+    fn custom_tiles_spawn_without_a_sprite_but_stay_cullable() {
+        let mut app = viewer_app(DeepZoomTileVisual::Custom);
+        app.update();
+        let mut tiles = app
+            .world_mut()
+            .query::<(&DziTile, Has<Sprite>, Has<Visibility>, &Transform)>();
+        let (tile, has_sprite, has_visibility, transform) = tiles.single(app.world()).unwrap();
+        assert!(!has_sprite, "the app draws custom tiles");
+        assert!(has_visibility, "the occlusion cull needs a Visibility");
+        assert_eq!(
+            transform.translation.truncate(),
+            Vec2::new(tile.rect.min.x, tile.rect.max.y)
+        );
+    }
+
+    #[test]
+    fn a_tile_counts_as_loaded_from_its_own_image_without_a_sprite() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        app.init_asset::<Image>();
+        let image = app
+            .world_mut()
+            .resource_mut::<Assets<Image>>()
+            .add(Image::default());
+        let id = (3, 1, 2);
+        let mut deep_zoom = DeepZoom::from_config(DeepZoomConfig::new("map.dzi", "map_files"));
+        deep_zoom.state.tiles_loading.insert(id);
+        let viewer = app.world_mut().spawn((Camera2d, deep_zoom)).id();
+        app.world_mut().spawn(DziTile {
+            owner_entity: viewer,
+            id,
+            zoom_level: 3,
+            rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+            image: image.clone(),
+            size: Vec2::ONE,
+        });
+        app.add_systems(Update, check_tile_loading_status);
+        app.world_mut()
+            .write_message(AssetEvent::LoadedWithDependencies { id: image.id() });
+        app.update();
+        let state = &app.world().get::<DeepZoom>(viewer).unwrap().state;
+        assert!(state.tiles_loaded.contains(&id));
+        assert!(!state.tiles_loading.contains(&id));
     }
 }

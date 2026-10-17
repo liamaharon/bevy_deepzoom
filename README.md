@@ -10,7 +10,7 @@ Render [Deep Zoom](https://en.wikipedia.org/wiki/Deep_Zoom) image pyramids in Be
 
 | `bevy_deepzoom` | `bevy` |
 | --------------- | ------ |
-| `0.0.5–0.0.7`   | `0.19` |
+| `0.0.5–0.0.8`   | `0.19` |
 | `0.0.4`         | `0.18` |
 | `0.0.1`         | `0.17` |
 
@@ -31,6 +31,25 @@ fn main() {
         .add_plugins(DeepZoomPlugin)
         .add_systems(Startup, spawn_camera)
         .run();
+}
+```
+
+### Drawing tiles yourself
+
+By default each tile is a `Sprite`. To draw tiles with your own material (for
+example to tint them or add an effect in the tile shader), set
+`DeepZoomTileVisual::Custom` and add your visual when a `DziTile` spawns. The
+tile's `Transform` is its top-left corner, `DziTile::size` its extent growing
+right and down, and `DziTile::image` its texture.
+
+```rust,ignore
+let config = DeepZoomConfig::new("assets/map/tiles.dzi", "assets/map/tiles_files")
+    .with_tile_visual(DeepZoomTileVisual::Custom);
+
+fn draw_tile(add: On<Add, DziTile>, tiles: Query<&DziTile>, mut commands: Commands) {
+    let tile = tiles.get(add.entity).unwrap();
+    // Insert e.g. a `Mesh2d` covering `tile.size` from the top-left, with a
+    // material sampling `tile.image`.
 }
 ```
 
